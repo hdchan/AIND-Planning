@@ -306,6 +306,24 @@ class PlanningGraph():
         #   set iff all prerequisite literals for the action hold in S0.  This can be accomplished by testing
         #   to see if a proposed PgNode_a has prenodes that are a subset of the previous S level.  Once an
         #   action node is added, it MUST be connected to the S node instances in the appropriate s_level set.
+        a_level_nodes = []
+        for state_node in self.s_levels[level]:
+            for action in self.all_actions:
+                is_possible = False
+                if state_node.is_pos:
+                    if state_node.symbol in action.precond_pos:
+                        is_possible = True
+                else: 
+                    if state_node.symbol in action.precond_neg:
+                        is_possible = True
+                if is_possible:
+                    action_node = PgNode_a(action)
+                    action_node.parents.add(state_node)
+                    state_node.children.add(action_node)
+                    a_level_nodes.append(action_node)
+                    # print("possible")
+        self.a_levels.insert(level, a_level_nodes)
+    
 
     def add_literal_level(self, level):
         """ add an S (literal) level to the Planning Graph
@@ -324,6 +342,12 @@ class PlanningGraph():
         #   may be "added" to the set without fear of duplication.  However, it is important to then correctly create and connect
         #   all of the new S nodes as children of all the A nodes that could produce them, and likewise add the A nodes to the
         #   parent sets of the S nodes
+        s_level_nodes = []
+        for action_node in self.a_levels[level - 1]:
+            s_level_nodes += action_node.effnodes
+
+        self.s_levels.insert(level, set(s_level_nodes))
+            
 
     def update_a_mutex(self, nodeset):
         """ Determine and update sibling mutual exclusion for A-level nodes
