@@ -209,8 +209,14 @@ class AirCargoProblem(Problem):
         executed.
         """
         # TODO implement (see Russell-Norvig Ed-3 10.2.3  or Russell-Norvig Ed-2 11.2)
-        count = 2
-        return count
+        kb = PropKB()
+        kb.tell(decode_state(node.state, self.state_map).pos_sentence())
+        clauses = kb.clauses
+        toggle_fluents = []
+        for fluent in self.goal:
+            if fluent not in clauses:
+                toggle_fluents.append(fluent)
+        return len(toggle_fluents)
 
 
 def air_cargo_p1() -> AirCargoProblem:

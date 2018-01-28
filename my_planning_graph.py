@@ -2,7 +2,7 @@ from aimacode.planning import Action
 from aimacode.search import Problem
 from aimacode.utils import expr, Expr
 from lp_utils import decode_state
-
+import copy
 
 class PgNode():
     """Base class for planning graph nodes.
@@ -306,22 +306,16 @@ class PlanningGraph():
         #   set iff all prerequisite literals for the action hold in S0.  This can be accomplished by testing
         #   to see if a proposed PgNode_a has prenodes that are a subset of the previous S level.  Once an
         #   action node is added, it MUST be connected to the S node instances in the appropriate s_level set.
-        a_level_nodes = []
-        for state_node in self.s_levels[level]:
-            for action in self.all_actions:
-                is_possible = False
-                if state_node.is_pos:
-                    if state_node.symbol in action.precond_pos:
-                        is_possible = True
-                else: 
-                    if state_node.symbol in action.precond_neg:
-                        is_possible = True
-                if is_possible:
-                    action_node = PgNode_a(action)
-                    action_node.parents.add(state_node)
-                    state_node.children.add(action_node)
-                    a_level_nodes.append(action_node)
-                    # print("possible")
+        a_level_nodes = set()
+        s_level = self.s_levels[level]
+        for action in self.all_actions:
+            a_node = PgNode_a(action)
+            if a_node.prenodes.issubset(s_level):
+                a_level_nodes.add(a_node)
+                for s_node in s_level:
+                    s_node.children.add(a_node)
+                    a_node.parents.add(s_node)
+
         self.a_levels.insert(level, a_level_nodes)
     
 
@@ -342,9 +336,12 @@ class PlanningGraph():
         #   may be "added" to the set without fear of duplication.  However, it is important to then correctly create and connect
         #   all of the new S nodes as children of all the A nodes that could produce them, and likewise add the A nodes to the
         #   parent sets of the S nodes
-        s_level_nodes = []
-        for action_node in self.a_levels[level - 1]:
-            s_level_nodes += action_node.effnodes
+        s_level_nodes = set()
+        for a_node in self.a_levels[level - 1]:
+            for s_node in a_node.effnodes:
+                s_level_nodes.add(s_node)
+                a_node.children.add(s_node)
+                s_node.parents.add(a_node)
 
         self.s_levels.insert(level, set(s_level_nodes))
             
@@ -514,7 +511,7 @@ class PlanningGraph():
                     return False
        
         return is_mutex
-
+    
     def h_levelsum(self) -> int:
         """The sum of the level costs of the individual goals (admissible if goals independent)
 
@@ -524,7 +521,7 @@ class PlanningGraph():
         # TODO implement
         # for each goal in the problem, determine the level cost, then add them together
         # for goal in self.problem.goal:
-        goal_copy = self.problem.goal
+        goal_copy = copy.deepcopy(self.problem.goal)
         
         for level in range(len(self.s_levels)):
             for state in self.s_levels[level]:
